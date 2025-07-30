@@ -1,10 +1,10 @@
-# Space Taxi
+# Spaced Taxi
 
 A retro-style space taxi game built with Phaser 3 and TypeScript. Navigate your taxi through procedurally generated levels, picking up passengers and delivering them to their destinations before time runs out.
 
-🚀 **[Play Space Taxi](https://spacedtaxi.web.app)**
+🚀 **[Play Spaced Taxi](https://spacedtaxi.web.app)**
 
-![Space Taxi Screenshot](screenshot.png)
+![Spaced Taxi Screenshot](screenshot.png)
 
 ## Game Features
 
