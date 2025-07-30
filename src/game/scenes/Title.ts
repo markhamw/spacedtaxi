@@ -21,23 +21,15 @@ export class Title extends Scene {
         borderGraphics.lineStyle(2, 0x816271);
         borderGraphics.strokeRect(25, 25, width - 50, height - 50);
 
-        // Create title text using Sixtyfour font - scaled for 1200x600 resolution
-        const titleText = this.add.text(width / 2, height / 2 - 80, 'SPACED TAXI', {
-            fontFamily: 'Sixtyfour',
-            fontSize: '100px',
-            color: '#f6d6bd',
-            stroke: '#4e495f',
-            strokeThickness: 3
-        }).setOrigin(0.5);
+        // Create title text using bitmap font - scaled for 1200x600 resolution
+        const titleText = this.add.bitmapText(width / 2, height / 2 - 80, 'thick_8x8', 'SPACED TAXI', 48)
+            .setOrigin(0.5)
+            .setTint(0xf6d6bd);
 
         // Create subtitle/instruction text
-        const subtitleText = this.add.text(width / 2, height / 2 + 80, 'Press SPACE to Start', {
-            fontFamily: 'Sixtyfour',
-            fontSize: '40px',
-            color: '#c3a38a',
-            stroke: '#816271',
-            strokeThickness: 2
-        }).setOrigin(0.5);
+        const subtitleText = this.add.bitmapText(width / 2, height / 2 + 80, 'thick_8x8', 'Press SPACE to Start', 20)
+            .setOrigin(0.5)
+            .setTint(0xc3a38a);
 
         // Add decorative corner elements using palette colors
         const cornerSize = 30;
@@ -65,7 +57,7 @@ export class Title extends Scene {
             repeat: -1
         });
 
-        // Color cycling tween for title text stroke
+        // Color cycling tween for title text tint
         this.tweens.add({
             targets: titleText,
             duration: 3000,
@@ -73,9 +65,9 @@ export class Title extends Scene {
             yoyo: true,
             onUpdate: (tween) => {
                 const progress = tween.progress;
-                const colors = [0x4e495f, 0x816271, 0x997577];
+                const colors = [0xf6d6bd, 0xc3a38a, 0x997577];
                 const colorIndex = Math.floor(progress * colors.length) % colors.length;
-                titleText.setStroke(`#${colors[colorIndex].toString(16).padStart(6, '0')}`, 3);
+                titleText.setTint(colors[colorIndex]);
             }
         });
 

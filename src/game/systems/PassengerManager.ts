@@ -4,6 +4,7 @@ import { randFirstName, randLastName, randJobTitle, randCity } from '@ngneat/fal
 export interface Passenger {
     id: string;
     name: string;
+    gender: 'male' | 'female';
     pickupPlatform: string;
     destinationPlatform: string;
     personality: PassengerPersonality;
@@ -12,7 +13,7 @@ export interface Passenger {
     isPickedUp: boolean;
     isDelivered: boolean;
     sprite?: Phaser.GameObjects.Rectangle;
-    nameText?: Phaser.GameObjects.Text;
+    nameText?: Phaser.GameObjects.BitmapText;
 }
 
 export interface PassengerPersonality {
@@ -59,33 +60,71 @@ export class PassengerManager {
         // Get available voices, filtering for English voices with variety
         const updateVoices = () => {
             const voices = this.speechSynth.getVoices();
+            console.log(`Total available voices: ${voices.length}`);
+            
             this.availableVoices = voices.filter(voice => 
                 voice.lang.startsWith('en') && 
                 (voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.default)
             );
+            
+            console.log(`Filtered English voices: ${this.availableVoices.length}`);
+            if (this.availableVoices.length > 0) {
+                console.log('Available voices:', this.availableVoices.map(v => v.name));
+            } else {
+                console.warn('No suitable English voices found, using default voice');
+                // Fallback to any available voice
+                this.availableVoices = voices.slice(0, 3); // Use first 3 voices as fallback
+            }
         };
 
         updateVoices();
         
         // Voices may load asynchronously
         if (this.speechSynth.onvoiceschanged !== undefined) {
-            this.speechSynth.onvoiceschanged = updateVoices;
+            this.speechSynth.onvoiceschanged = () => {
+                console.log('Voice list updated');
+                updateVoices();
+                // Reassign voices to existing passengers who don't have voices
+                this.reassignVoicesToPassengers();
+            };
         }
     }
 
+    private reassignVoicesToPassengers(): void {
+        if (this.availableVoices.length === 0) return;
+        
+        // Find passengers without voices and assign them
+        this.passengers.forEach(passenger => {
+            if (!passenger.voice) {
+                passenger.voice = this.selectVoice(passenger.personality, passenger.gender);
+                if (passenger.voice) {
+                    console.log(`Assigned voice "${passenger.voice.name}" to passenger ${passenger.name}`);
+                }
+            }
+        });
+    }
+
     generatePassenger(pickupPlatform: string, destinationPlatform: string): Passenger {
-        const firstName = randFirstName();
+        const gender: 'male' | 'female' = Math.random() > 0.5 ? 'male' : 'female';
+        const firstName = randFirstName({ sex: gender });
         const lastName = randLastName();
         const name = `${firstName} ${lastName}`;
         const id = `passenger_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         const personality = this.generatePersonality();
         const dialogue = this.generateDialogue(name, destinationPlatform, personality);
-        const voice = this.selectVoice(personality);
+        const voice = this.selectVoice(personality, gender);
+
+        if (voice) {
+            console.log(`Generated ${gender} passenger ${name} with voice: ${voice.name}`);
+        } else {
+            console.warn(`Generated ${gender} passenger ${name} WITHOUT voice - voices may not be loaded yet`);
+        }
 
         return {
             id,
             name,
+            gender,
             pickupPlatform,
             destinationPlatform,
             personality,
@@ -169,30 +208,67 @@ export class PassengerManager {
         };
     }
 
-    private selectVoice(personality: PassengerPersonality): SpeechSynthesisVoice | null {
-        if (this.availableVoices.length === 0) return null;
+    private selectVoice(personality: PassengerPersonality, gender: 'male' | 'female'): SpeechSynthesisVoice | null {
+        // If no voices are available yet, try to get them again
+        if (this.availableVoices.length === 0) {
+            const voices = this.speechSynth.getVoices();
+            if (voices.length > 0) {
+                console.log(`Found ${voices.length} voices during voice selection`);
+                // Update our available voices list
+                this.availableVoices = voices.filter(voice => 
+                    voice.lang.startsWith('en') && 
+                    (voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.default)
+                );
+                
+                if (this.availableVoices.length === 0) {
+                    // Still no suitable voices, use any available voice as fallback
+                    this.availableVoices = voices.slice(0, 3);
+                    console.log('Using fallback voices:', this.availableVoices.map(v => v.name));
+                }
+            } else {
+                console.warn('No voices available for passenger');
+                return null;
+            }
+        }
 
         // Try to match voice characteristics to personality
         let preferredVoices = this.availableVoices;
 
-        // Filter by gender preference based on personality
+        // Filter voices by gender
         const maleVoices = this.availableVoices.filter(v => 
             v.name.toLowerCase().includes('male') || 
             v.name.toLowerCase().includes('david') ||
-            v.name.toLowerCase().includes('mark')
+            v.name.toLowerCase().includes('mark') ||
+            v.name.toLowerCase().includes('james') ||
+            v.name.toLowerCase().includes('daniel') ||
+            v.name.toLowerCase().includes('george') ||
+            v.name.toLowerCase().includes('microsoft david') ||
+            v.name.toLowerCase().includes('google uk english male')
         );
         
         const femaleVoices = this.availableVoices.filter(v => 
             v.name.toLowerCase().includes('female') || 
             v.name.toLowerCase().includes('zira') ||
-            v.name.toLowerCase().includes('susan')
+            v.name.toLowerCase().includes('susan') ||
+            v.name.toLowerCase().includes('hazel') ||
+            v.name.toLowerCase().includes('samantha') ||
+            v.name.toLowerCase().includes('karen') ||
+            v.name.toLowerCase().includes('microsoft zira') ||
+            v.name.toLowerCase().includes('google uk english female')
         );
 
-        // Random selection with slight personality bias
-        if (personality.type === 'businesslike' && maleVoices.length > 0) {
+        // Select voices based on passenger gender
+        if (gender === 'male' && maleVoices.length > 0) {
             preferredVoices = maleVoices;
-        } else if (personality.type === 'friendly' && femaleVoices.length > 0) {
+        } else if (gender === 'female' && femaleVoices.length > 0) {
             preferredVoices = femaleVoices;
+        } else {
+            // Fallback to gender-appropriate voices if specific gender voices aren't available
+            if (gender === 'male') {
+                preferredVoices = maleVoices.length > 0 ? maleVoices : this.availableVoices;
+            } else {
+                preferredVoices = femaleVoices.length > 0 ? femaleVoices : this.availableVoices;
+            }
         }
 
         return preferredVoices[Math.floor(Math.random() * preferredVoices.length)];
@@ -223,13 +299,9 @@ export class PassengerManager {
         sprite.setStrokeStyle(1, parseInt(this.colors.passengerBorder.replace('#', '0x')));
         sprite.setVisible(false); // Will be made visible when positioned
 
-        const nameText = this.scene.add.text(0, 0, passenger.name, {
-            fontFamily: 'Sixtyfour',
-            fontSize: '10px',
-            color: this.colors.text,
-            backgroundColor: this.colors.passenger,
-            padding: { x: 4, y: 2 }
-        }).setOrigin(0.5);
+        const nameText = this.scene.add.bitmapText(0, 0, 'thick_8x8', passenger.name, 8)
+            .setOrigin(0.5)
+            .setTint(parseInt(this.colors.text.replace('#', '0x')));
         nameText.setVisible(false);
 
         passenger.sprite = sprite;
@@ -257,7 +329,21 @@ export class PassengerManager {
 
     speakPassengerLine(passengerId: string, lineType: 'greeting' | 'destination' | 'delivered' | 'waiting'): void {
         const passenger = this.passengers.find(p => p.id === passengerId);
-        if (!passenger || !passenger.voice) return;
+        if (!passenger) {
+            console.warn(`Passenger ${passengerId} not found for speech`);
+            return;
+        }
+        
+        if (!passenger.voice) {
+            console.warn(`No voice assigned to passenger ${passengerId}`);
+            return;
+        }
+
+        // Check if speech synthesis is available and active
+        if (!window.speechSynthesis) {
+            console.warn('Speech synthesis not available');
+            return;
+        }
 
         let text: string;
         switch (lineType) {
@@ -281,12 +367,37 @@ export class PassengerManager {
                 return;
         }
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.voice = passenger.voice;
-        utterance.rate = passenger.personality.urgency * 0.5 + 0.7; // Rate between 0.7-1.2
-        utterance.pitch = Math.random() * 0.4 + 0.8; // Pitch between 0.8-1.2
+        try {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = passenger.voice;
+            utterance.rate = passenger.personality.urgency * 0.5 + 0.7; // Rate between 0.7-1.2
+            utterance.pitch = Math.random() * 0.4 + 0.8; // Pitch between 0.8-1.2
+            utterance.volume = 0.8; // Ensure good volume
+            
+            // Add event listeners for debugging
+            utterance.onstart = () => {
+                console.log(`Speaking: "${text}" (${lineType}) for ${passenger.name}`);
+            };
+            
+            utterance.onerror = (event) => {
+                console.error(`Speech synthesis error for ${passenger.name}:`, event.error);
+            };
+            
+            utterance.onend = () => {
+                console.log(`Finished speaking for ${passenger.name}`);
+            };
 
-        this.speechSynth.speak(utterance);
+            // Cancel any ongoing speech before starting new one
+            this.speechSynth.cancel();
+            
+            // Small delay to ensure cancellation is processed
+            setTimeout(() => {
+                this.speechSynth.speak(utterance);
+            }, 100);
+            
+        } catch (error) {
+            console.error(`Error creating speech for ${passenger.name}:`, error);
+        }
     }
 
     pickupPassenger(passengerId: string): boolean {

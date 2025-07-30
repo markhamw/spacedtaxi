@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "mcp__MCPs_all_in_docker__browser_snapshot",
-      "mcp__MCPs_all_in_docker__browser_take_screenshot"
+      "mcp__MCPs_all_in_docker__browser_take_screenshot",
+      "mcp__MCPs_all_in_docker__browser_navigate",
+      "mcp__MCPs_all_in_docker__browser_press_key",
+      "mcp__MCPs_all_in_docker__browser_console_messages",
+      "mcp__MCPs_all_in_docker__browser_wait_for",
+      "mcp__MCPs_all_in_docker__browser_network_requests",
+      "mcp__MCPs_all_in_docker__browser_evaluate",
+      "Bash(npm run build-deploy:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": []
   }

@@ -3,7 +3,6 @@ import { Scene } from 'phaser';
 export class BackgroundRenderer {
     private scene: Scene;
     private stars: Phaser.GameObjects.Graphics[] = [];
-    private meteorites: Phaser.GameObjects.Graphics[] = [];
     private vessels: Phaser.GameObjects.Graphics[] = [];
     private starTweens: Phaser.Tweens.Tween[] = [];
 
@@ -11,7 +10,6 @@ export class BackgroundRenderer {
     private readonly colors = {
         background: 0x08141e,
         stars: [0xf6d6bd, 0xc3a38a, 0x997577],
-        meteorite: 0x816271,
         vessel: 0x4e495f,
         vesselAccent: 0x20394f
     };
@@ -23,14 +21,11 @@ export class BackgroundRenderer {
     createBackground(): void {
         const { width, height } = this.scene.scale;
 
-        // Create gradient background
-        this.createGradientBackground();
+        // Create solid background
+        this.createSolidBackground();
         
         // Create twinkling stars
         this.createStars(50);
-        
-        // Create moving meteorites
-        this.createMeteorites(5);
         
         // Create moving vessels
         this.createVessels(3);
@@ -38,24 +33,16 @@ export class BackgroundRenderer {
         console.log('Background created with dynamic elements');
     }
 
-    private createGradientBackground(): void {
+    private createSolidBackground(): void {
         const { width, height } = this.scene.scale;
         
-        // Create a graphics object for the gradient
-        const gradient = this.scene.add.graphics();
-        
-        // Create gradient effect using multiple rectangles with varying alpha
-        const colors = [0x08141e, 0x0f2a3f, 0x20394f];
-        const steps = height / colors.length;
-        
-        for (let i = 0; i < colors.length; i++) {
-            const alpha = 1 - (i * 0.3);
-            gradient.fillStyle(colors[i], alpha);
-            gradient.fillRect(0, i * steps, width, steps + 10); // +10 for overlap
-        }
+        // Create a solid dark background
+        const background = this.scene.add.graphics();
+        background.fillStyle(this.colors.background); // Use the darkest color: 0x08141e
+        background.fillRect(0, 0, width, height);
         
         // Send to back
-        gradient.setDepth(-100);
+        background.setDepth(-100);
     }
 
     private createStars(count: number): void {
@@ -89,49 +76,6 @@ export class BackgroundRenderer {
         }
     }
 
-    private createMeteorites(count: number): void {
-        const { width, height } = this.scene.scale;
-        
-        for (let i = 0; i < count; i++) {
-            const meteorite = this.scene.add.graphics();
-            meteorite.fillStyle(this.colors.meteorite);
-            
-            // Create irregular meteorite shape
-            const size = Math.random() * 8 + 4; // Size between 4-12
-            const x = -size; // Start off-screen
-            const y = Math.random() * height;
-            
-            meteorite.fillCircle(0, 0, size);
-            meteorite.fillCircle(size * 0.3, size * 0.2, size * 0.6); // Add irregular bump
-            meteorite.setPosition(x, y);
-            meteorite.setDepth(-40);
-            
-            this.meteorites.push(meteorite);
-            
-            // Add movement across screen
-            this.scene.tweens.add({
-                targets: meteorite,
-                x: width + size,
-                duration: Math.random() * 10000 + 15000, // 15-25 seconds to cross
-                ease: 'Linear',
-                repeat: -1,
-                delay: Math.random() * 5000, // Stagger start times
-                onRepeat: () => {
-                    // Reset position and randomize Y
-                    meteorite.setPosition(-size, Math.random() * height);
-                }
-            });
-            
-            // Add slow rotation
-            this.scene.tweens.add({
-                targets: meteorite,
-                rotation: Math.PI * 2,
-                duration: Math.random() * 8000 + 5000, // 5-13 seconds per rotation
-                repeat: -1,
-                ease: 'Linear'
-            });
-        }
-    }
 
     private createVessels(count: number): void {
         const { width, height } = this.scene.scale;
@@ -198,10 +142,6 @@ export class BackgroundRenderer {
             star.y -= cameraY * parallaxFactor;
         });
         
-        this.meteorites.forEach(meteorite => {
-            // Meteorites move independently, no parallax needed
-        });
-        
         this.vessels.forEach(vessel => {
             // Vessels move independently, no parallax needed
         });
@@ -214,11 +154,9 @@ export class BackgroundRenderer {
         
         // Destroy graphics objects
         this.stars.forEach(star => star.destroy());
-        this.meteorites.forEach(meteorite => meteorite.destroy());
         this.vessels.forEach(vessel => vessel.destroy());
         
         this.stars = [];
-        this.meteorites = [];
         this.vessels = [];
     }
 }

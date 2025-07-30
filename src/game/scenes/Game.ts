@@ -3,6 +3,7 @@ import { MissionOrchestrator } from "../systems/MissionOrchestrator";
 
 export class Game extends Scene {
     private orchestrator: MissionOrchestrator | null = null;
+    private audioInitialized: boolean = false;
 
     constructor() {
         super("Game");
@@ -10,6 +11,9 @@ export class Game extends Scene {
 
     create() {
         const { width, height } = this.scale;
+        
+        // Initialize speech synthesis on first load
+        this.initializeAudio();
         
         // Initialize the mission orchestration system
         this.orchestrator = new MissionOrchestrator(this);
@@ -21,6 +25,58 @@ export class Game extends Scene {
         this.setupInputHandlers();
         
         console.log('Game scene initialized with orchestration system');
+    }
+
+    private initializeAudio(): void {
+        if (this.audioInitialized) return;
+        
+        try {
+            // Test if speech synthesis is available
+            if ('speechSynthesis' in window) {
+                // Get voices to ensure speech synthesis is ready
+                const voices = window.speechSynthesis.getVoices();
+                console.log(`Speech synthesis initialized. Available voices: ${voices.length}`);
+                
+                // If no voices are loaded yet, wait for them
+                if (voices.length === 0) {
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        const updatedVoices = window.speechSynthesis.getVoices();
+                        console.log(`Speech synthesis voices loaded: ${updatedVoices.length}`);
+                        this.audioInitialized = true;
+                    };
+                } else {
+                    this.audioInitialized = true;
+                }
+                
+                // Play a brief test sound to activate audio context
+                this.time.delayedCall(500, () => {
+                    this.playAudioTest();
+                });
+                
+            } else {
+                console.warn('Speech synthesis not supported in this browser');
+            }
+        } catch (error) {
+            console.error('Error initializing audio:', error);
+        }
+    }
+
+    private playAudioTest(): void {
+        if (!this.audioInitialized) return;
+        
+        try {
+            // Create a very brief, quiet test utterance
+            const testUtterance = new SpeechSynthesisUtterance(' '); // Single space
+            testUtterance.volume = 0.01; // Very quiet
+            testUtterance.rate = 2; // Fast
+            testUtterance.pitch = 1;
+            
+            // Use this to activate the speech synthesis without disturbing gameplay
+            window.speechSynthesis.speak(testUtterance);
+            console.log('Audio test completed - speech synthesis should now be active');
+        } catch (error) {
+            console.error('Audio test failed:', error);
+        }
     }
 
     private setupInputHandlers(): void {

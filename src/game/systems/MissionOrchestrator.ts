@@ -3,6 +3,7 @@ import { LevelGenerator, LevelData } from './LevelGenerator';
 import { PlatformManager, PlatformVisual } from './PlatformManager';
 import { PassengerManager, Mission, Passenger } from './PassengerManager';
 import { BackgroundRenderer } from './BackgroundRenderer';
+import { SpaceStationManager } from './SpaceStationManager';
 
 export interface GameState {
     currentLevel: number;
@@ -10,13 +11,15 @@ export interface GameState {
     completedMissions: number;
     totalMissions: number;
     gameStatus: 'loading' | 'ready' | 'playing' | 'paused' | 'level_complete' | 'game_over';
+    timeRemaining: number;
 }
 
 export interface UIElements {
-    levelText: Phaser.GameObjects.Text;
-    scoreText: Phaser.GameObjects.Text;
-    missionText: Phaser.GameObjects.Text;
-    objectiveText: Phaser.GameObjects.Text;
+    levelText: Phaser.GameObjects.BitmapText;
+    scoreText: Phaser.GameObjects.BitmapText;
+    missionText: Phaser.GameObjects.BitmapText;
+    objectiveText: Phaser.GameObjects.BitmapText;
+    timerText: Phaser.GameObjects.BitmapText;
 }
 
 export class MissionOrchestrator {
@@ -25,10 +28,13 @@ export class MissionOrchestrator {
     private platformManager: PlatformManager;
     private passengerManager: PassengerManager;
     private backgroundRenderer: BackgroundRenderer;
+    private spaceStationManager: SpaceStationManager;
     
     private gameState: GameState;
     private currentLevelData: LevelData | null = null;
     private uiElements: UIElements | null = null;
+    private pickupTimer: Phaser.Time.TimerEvent | null = null;
+    private timerUpdateEvent: Phaser.Time.TimerEvent | null = null;
     
     // Color palette
     private readonly colors = {
@@ -43,24 +49,26 @@ export class MissionOrchestrator {
         this.platformManager = new PlatformManager(scene);
         this.passengerManager = new PassengerManager(scene);
         this.backgroundRenderer = new BackgroundRenderer(scene);
+        this.spaceStationManager = new SpaceStationManager(scene);
         
         this.gameState = {
             currentLevel: 1,
             score: 0,
             completedMissions: 0,
             totalMissions: 0,
-            gameStatus: 'loading'
+            gameStatus: 'loading',
+            timeRemaining: 20
         };
     }
 
-    async startGame(): Promise<void> {
+    startGame(): void {
         this.gameState.gameStatus = 'loading';
         
         // Create background first
         this.backgroundRenderer.createBackground();
         
         // Generate first level
-        await this.loadLevel(1);
+        this.loadLevel(1);
         
         // Create UI
         this.createUI();
@@ -73,16 +81,28 @@ export class MissionOrchestrator {
         console.log('Game started successfully');
     }
 
-    private async loadLevel(levelNumber: number): Promise<void> {
+    private loadLevel(levelNumber: number): void {
         // Clear previous level
         this.platformManager.clearPlatforms();
         this.passengerManager.clearAllPassengers();
+        this.spaceStationManager.clearSpaceStation();
         
         // Generate new level
         this.currentLevelData = this.levelGenerator.generateLevel(levelNumber);
+        console.log(`Generated ${this.currentLevelData.platforms.length} platforms for level ${levelNumber}:`, this.currentLevelData.platforms);
+        
+        // Create space station with arms to platforms FIRST (renders behind)
+        this.spaceStationManager.createSpaceStation(
+            this.currentLevelData.spaceStationCenter, 
+            levelNumber, 
+            this.currentLevelData.platforms
+        );
+        
+        // Create platforms AFTER (renders in front of arms)
+        const platforms = this.platformManager.createPlatforms(this.currentLevelData.platforms);
+        console.log(`Created ${platforms.length} platform visuals`);
         
         // Validate level layout
-        const platforms = this.platformManager.createPlatforms(this.currentLevelData.platforms);
         const validation = this.platformManager.validatePlatformLayout();
         
         if (!validation.valid) {
@@ -102,54 +122,111 @@ export class MissionOrchestrator {
         const { width, height } = this.scene.scale;
         
         // Level indicator
-        const levelText = this.scene.add.text(20, 20, `Level: ${this.gameState.currentLevel}`, {
-            fontFamily: 'Sixtyfour',
-            fontSize: '24px',
-            color: this.colors.uiText
-        });
+        const levelText = this.scene.add.bitmapText(20, 20, 'thick_8x8', `Level: ${this.gameState.currentLevel}`, 16)
+            .setTint(parseInt(this.colors.uiText.replace('#', '0x')));
         
         // Score display
-        const scoreText = this.scene.add.text(20, 50, `Score: ${this.gameState.score}`, {
-            fontFamily: 'Sixtyfour',
-            fontSize: '18px',
-            color: this.colors.uiText
-        });
+        const scoreText = this.scene.add.bitmapText(20, 50, 'thick_8x8', `Score: ${this.gameState.score}`, 12)
+            .setTint(parseInt(this.colors.uiText.replace('#', '0x')));
         
         // Mission progress
-        const missionText = this.scene.add.text(20, 75, 
-            `Missions: ${this.gameState.completedMissions}/${this.gameState.totalMissions}`, {
-            fontFamily: 'Sixtyfour',
-            fontSize: '18px',
-            color: this.colors.uiText
-        });
+        const missionText = this.scene.add.bitmapText(20, 75, 'thick_8x8', 
+            `Missions: ${this.gameState.completedMissions}/${this.gameState.totalMissions}`, 12)
+            .setTint(parseInt(this.colors.uiText.replace('#', '0x')));
         
-        // Current objective
-        const objectiveText = this.scene.add.text(width / 2, height - 40, '', {
-            fontFamily: 'Sixtyfour',
-            fontSize: '16px',
-            color: this.colors.uiSecondary
-        }).setOrigin(0.5);
+        // Current objective - moved to top middle
+        const objectiveText = this.scene.add.bitmapText(width / 2, 60, 'thick_8x8', '', 14)
+            .setOrigin(0.5)
+            .setTint(parseInt(this.colors.uiText.replace('#', '0x')));
+        
+        // Timer display - top right
+        const timerText = this.scene.add.bitmapText(width - 20, 20, 'thick_8x8', `Time: ${this.gameState.timeRemaining}`, 16)
+            .setOrigin(1, 0)
+            .setTint(parseInt(this.colors.uiText.replace('#', '0x')));
         
         this.uiElements = {
             levelText,
             scoreText,
             missionText,
-            objectiveText
+            objectiveText,
+            timerText
         };
     }
 
     private startLevelMissions(): void {
         if (!this.currentLevelData) return;
         
-        // Create initial missions for the level
-        const missionCount = Math.min(2, this.currentLevelData.config.passengerCount); // Start with 1-2 missions
+        // Start with just ONE passenger at a time
+        this.createRandomMission();
+        this.updateObjectiveDisplay();
         
-        for (let i = 0; i < missionCount; i++) {
-            this.createRandomMission();
+        // Start 20-second pickup timer
+        this.startPickupTimer();
+    }
+
+    private startPickupTimer(): void {
+        // Reset timer
+        this.gameState.timeRemaining = 20;
+        
+        // Clear existing timers
+        if (this.pickupTimer) {
+            this.pickupTimer.destroy();
+        }
+        if (this.timerUpdateEvent) {
+            this.timerUpdateEvent.destroy();
         }
         
-        this.updateObjectiveDisplay();
+        // Create main timer - game over after 20 seconds
+        this.pickupTimer = this.scene.time.delayedCall(20000, () => {
+            this.triggerGameOver();
+        });
+        
+        // Create update timer - countdown every second
+        this.timerUpdateEvent = this.scene.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                this.gameState.timeRemaining--;
+                this.updateTimerDisplay();
+                
+                if (this.gameState.timeRemaining <= 0) {
+                    this.triggerGameOver();
+                }
+            },
+            repeat: 19 // Run 20 times total (20 seconds)
+        });
+        
+        this.updateTimerDisplay();
     }
+
+    private updateTimerDisplay(): void {
+        if (this.uiElements?.timerText) {
+            const timeColor = this.gameState.timeRemaining <= 5 ? '#ff4444' : this.colors.uiText;
+            this.uiElements.timerText.setText(`Time: ${this.gameState.timeRemaining}`)
+                .setTint(parseInt(timeColor.replace('#', '0x')));
+        }
+    }
+
+    private triggerGameOver(): void {
+        this.gameState.gameStatus = 'game_over';
+        
+        // Clear timers
+        if (this.pickupTimer) {
+            this.pickupTimer.destroy();
+            this.pickupTimer = null;
+        }
+        if (this.timerUpdateEvent) {
+            this.timerUpdateEvent.destroy();
+            this.timerUpdateEvent = null;
+        }
+        
+        // Transition to GameOver scene
+        console.log('Game Over: Time ran out!');
+        this.scene.scene.start('GameOver', {
+            score: this.gameState.score,
+            reason: 'Time ran out!'
+        });
+    }
+
 
     private createRandomMission(): void {
         if (!this.currentLevelData) return;
@@ -233,6 +310,7 @@ export class MissionOrchestrator {
         this.uiElements.missionText.setText(
             `Missions: ${this.gameState.completedMissions}/${this.gameState.totalMissions}`
         );
+        this.updateTimerDisplay();
     }
 
     // Public methods for game interactions
@@ -253,6 +331,10 @@ export class MissionOrchestrator {
             if (success) {
                 this.platformManager.setPlatformPassengerWaiting(platformId, false);
                 this.updateObjectiveDisplay();
+                
+                // Restart timer for delivery
+                this.startPickupTimer();
+                
                 console.log(`Picked up ${mission.passenger.name} from ${platformId}`);
                 return true;
             }
@@ -278,13 +360,12 @@ export class MissionOrchestrator {
             this.updateUI();
             this.updateObjectiveDisplay();
             
-            // Create new mission if needed
-            if (this.gameState.completedMissions < this.gameState.totalMissions) {
-                this.scene.time.delayedCall(2000, () => {
-                    this.createRandomMission();
-                    this.updateObjectiveDisplay();
-                });
-            }
+            // Always create a new passenger after delivery (continuous gameplay)
+            this.scene.time.delayedCall(2000, () => {
+                this.createRandomMission();
+                this.updateObjectiveDisplay();
+                this.startPickupTimer(); // Start new 20-second timer for pickup
+            });
             
             console.log(`Delivered ${currentPassenger.name} to ${platformId}. Score: +${baseScore + timeBonus}`);
             return true;
@@ -299,17 +380,13 @@ export class MissionOrchestrator {
             
             // Show level complete message
             if (this.uiElements) {
-                this.scene.add.text(
+                this.scene.add.bitmapText(
                     this.scene.scale.width / 2,
                     this.scene.scale.height / 2,
+                    'thick_8x8',
                     `Level ${this.gameState.currentLevel} Complete!\nPress SPACE for next level`,
-                    {
-                        fontFamily: 'Sixtyfour',
-                        fontSize: '32px',
-                        color: this.colors.uiText,
-                        align: 'center'
-                    }
-                ).setOrigin(0.5);
+                    20
+                ).setOrigin(0.5).setTint(parseInt(this.colors.uiText.replace('#', '0x')));
             }
             
             // Listen for level advance
@@ -321,9 +398,9 @@ export class MissionOrchestrator {
         }
     }
 
-    private async advanceToNextLevel(): Promise<void> {
+    private advanceToNextLevel(): void {
         const nextLevel = this.gameState.currentLevel + 1;
-        await this.loadLevel(nextLevel);
+        this.loadLevel(nextLevel);
         this.createUI();
         this.startLevelMissions();
         this.gameState.gameStatus = 'playing';
@@ -350,9 +427,20 @@ export class MissionOrchestrator {
     }
 
     public destroy(): void {
+        // Clean up timers
+        if (this.pickupTimer) {
+            this.pickupTimer.destroy();
+            this.pickupTimer = null;
+        }
+        if (this.timerUpdateEvent) {
+            this.timerUpdateEvent.destroy();
+            this.timerUpdateEvent = null;
+        }
+        
         this.platformManager.destroy();
         this.passengerManager.destroy();
         this.backgroundRenderer.destroy();
+        this.spaceStationManager.destroy();
         
         if (this.uiElements) {
             Object.values(this.uiElements).forEach(element => element.destroy());

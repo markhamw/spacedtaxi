@@ -2,8 +2,10 @@ import { Scene } from 'phaser';
 import { Platform } from './LevelGenerator';
 
 export interface PlatformVisual extends Platform {
-    sprite: Phaser.GameObjects.Rectangle;
-    labelText: Phaser.GameObjects.Text;
+    sprite: Phaser.GameObjects.Graphics;
+    labelText: Phaser.GameObjects.BitmapText;
+    collisionBody: Phaser.GameObjects.Rectangle;
+    supportArm: Phaser.GameObjects.Graphics;
     isOccupied: boolean;
     passengerWaiting: boolean;
 }
@@ -36,48 +38,130 @@ export class PlatformManager {
         platformData.forEach(platform => {
             const visual = this.createPlatformVisual(platform);
             this.platforms.push(visual);
-            this.platformGroup.add([visual.sprite, visual.labelText]);
+            this.platformGroup.add(visual.supportArm);
+            this.platformGroup.add(visual.sprite);
+            this.platformGroup.add(visual.labelText);
+            this.platformGroup.add(visual.collisionBody);
         });
 
         return this.platforms;
     }
 
     private createPlatformVisual(platform: Platform): PlatformVisual {
-        // Platform dimensions
-        const platformWidth = 80;
-        const platformHeight = 20;
+        // Platform dimensions - made larger for better visibility
+        const platformWidth = 120;
+        const platformHeight = 30;
+        const skewOffset = 20; // Parallelogram skew amount
 
-        // Create platform sprite as rectangle
-        const sprite = this.scene.add.rectangle(
-            platform.x,
-            platform.y,
+        // Create support arm first (drawn behind platform)
+        const supportArm = this.createPlatformSupportArm(platform);
+
+        // Create platform sprite as parallelogram using Graphics
+        const sprite = this.scene.add.graphics();
+        this.drawPlatformParallelogram(
+            sprite,
+            0, 0, // Position relative to the graphics object
             platformWidth,
             platformHeight,
-            parseInt(this.colors.platform.replace('#', '0x'))
+            skewOffset,
+            parseInt(this.colors.platform.replace('#', '0x')),
+            parseInt(this.colors.platformBorder.replace('#', '0x'))
         );
 
-        // Add border
-        sprite.setStrokeStyle(2, parseInt(this.colors.platformBorder.replace('#', '0x')));
+        // Position the graphics object
+        sprite.setPosition(platform.x, platform.y);
 
+        // Create collision body (bottom 50% only for 2.5D effect)
+        const collisionBody = this.scene.add.rectangle(
+            platform.x,
+            platform.y + platformHeight * 0.25, // Offset down by 25% of height
+            platformWidth,
+            platformHeight * 0.5, // Only bottom 50%
+            0x000000 // Color doesn't matter, will be invisible
+        );
+        collisionBody.setAlpha(0); // Make invisible
+        
         // Create platform label
-        const labelText = this.scene.add.text(
+        const labelText = this.scene.add.bitmapText(
             platform.x,
             platform.y - 35,
+            'thick_8x8',
             platform.id,
-            {
-                fontFamily: 'Sixtyfour',
-                fontSize: '16px',
-                color: this.colors.text
-            }
-        ).setOrigin(0.5);
+            12
+        ).setOrigin(0.5).setTint(parseInt(this.colors.text.replace('#', '0x')));
 
         return {
             ...platform,
             sprite,
             labelText,
+            collisionBody,
+            supportArm,
             isOccupied: false,
             passengerWaiting: false
         };
+    }
+
+    private drawPlatformParallelogram(
+        graphics: Phaser.GameObjects.Graphics,
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        skewOffset: number,
+        fillColor: number,
+        strokeColor: number
+    ): void {
+        graphics.clear();
+        
+        // Set fill and stroke styles
+        graphics.fillStyle(fillColor);
+        graphics.lineStyle(2, strokeColor);
+
+        // Draw parallelogram
+        // Start from top-left, go clockwise
+        graphics.beginPath();
+        graphics.moveTo(x - width/2 + skewOffset, y - height/2); // Top-left (skewed)
+        graphics.lineTo(x + width/2 + skewOffset, y - height/2); // Top-right (skewed)
+        graphics.lineTo(x + width/2 - skewOffset, y + height/2); // Bottom-right (skewed)
+        graphics.lineTo(x - width/2 - skewOffset, y + height/2); // Bottom-left (skewed)
+        graphics.closePath();
+        
+        graphics.fillPath();
+        graphics.strokePath();
+    }
+
+    private createPlatformSupportArm(platform: Platform): Phaser.GameObjects.Graphics {
+        const supportArm = this.scene.add.graphics();
+        
+        // Support arm extends downward from platform
+        const armLength = 25;
+        const armWidth = 6;
+        
+        // Main support beam
+        supportArm.fillStyle(parseInt(this.colors.platformBorder.replace('#', '0x')));
+        supportArm.fillRect(platform.x - armWidth/2, platform.y + 10, armWidth, armLength);
+        
+        // Support struts (diagonal supports)
+        supportArm.lineStyle(2, parseInt(this.colors.accent.replace('#', '0x')));
+        
+        // Left strut
+        supportArm.beginPath();
+        supportArm.moveTo(platform.x - 20, platform.y + 10);
+        supportArm.lineTo(platform.x - 3, platform.y + armLength + 10);
+        supportArm.strokePath();
+        
+        // Right strut
+        supportArm.beginPath();
+        supportArm.moveTo(platform.x + 20, platform.y + 10);
+        supportArm.lineTo(platform.x + 3, platform.y + armLength + 10);
+        supportArm.strokePath();
+        
+        // Connection brackets
+        supportArm.fillStyle(parseInt(this.colors.accent.replace('#', '0x')));
+        supportArm.fillCircle(platform.x - 3, platform.y + armLength + 10, 3);
+        supportArm.fillCircle(platform.x + 3, platform.y + armLength + 10, 3);
+        
+        return supportArm;
     }
 
     getPlatformById(id: string): PlatformVisual | undefined {
@@ -116,8 +200,22 @@ export class PlatformManager {
             textColor = this.colors.textSecondary;
         }
 
-        platform.sprite.setFillStyle(parseInt(fillColor.replace('#', '0x')));
-        platform.labelText.setColor(textColor);
+        // Redraw the parallelogram with new colors
+        const platformWidth = 120;
+        const platformHeight = 30;
+        const skewOffset = 20;
+        
+        this.drawPlatformParallelogram(
+            platform.sprite,
+            0, 0, // Position relative to the graphics object
+            platformWidth,
+            platformHeight,
+            skewOffset,
+            parseInt(fillColor.replace('#', '0x')),
+            parseInt(this.colors.platformBorder.replace('#', '0x'))
+        );
+
+        platform.labelText.setTint(parseInt(textColor.replace('#', '0x')));
     }
 
     getRandomPlatform(): PlatformVisual | null {
@@ -148,7 +246,7 @@ export class PlatformManager {
                     Math.pow(platform1.y - platform2.y, 2)
                 );
 
-                const minDistance = 100; // Minimum safe distance between platforms
+                const minDistance = 150; // Minimum safe distance between platforms - increased for better spacing
                 if (distance < minDistance) {
                     issues.push(`Platforms ${platform1.id} and ${platform2.id} are too close (${distance.toFixed(1)} < ${minDistance})`);
                 }
@@ -176,29 +274,57 @@ export class PlatformManager {
         const platform = this.getPlatformById(id);
         if (platform) {
             if (highlight) {
-                // Add pulsing highlight effect
-                this.scene.tweens.add({
-                    targets: platform.sprite,
-                    scaleX: 1.2,
-                    scaleY: 1.2,
-                    duration: 500,
-                    yoyo: true,
-                    repeat: -1
-                });
-                platform.sprite.setStrokeStyle(4, parseInt(this.colors.text.replace('#', '0x')));
+                // Redraw with highlight border (no pulsing animation)
+                const platformWidth = 120;
+                const platformHeight = 30;
+                const skewOffset = 20;
+                
+                this.drawPlatformParallelogram(
+                    platform.sprite,
+                    0, 0,
+                    platformWidth,
+                    platformHeight,
+                    skewOffset,
+                    parseInt(this.colors.platform.replace('#', '0x')),
+                    parseInt(this.colors.text.replace('#', '0x')) // Highlighted border
+                );
             } else {
-                // Remove highlight effects
-                this.scene.tweens.killTweensOf(platform.sprite);
-                platform.sprite.setScale(1);
-                platform.sprite.setStrokeStyle(2, parseInt(this.colors.platformBorder.replace('#', '0x')));
+                // Redraw with normal border
+                this.updatePlatformVisuals(platform);
             }
         }
+    }
+
+    checkCollisionWithPlatform(x: number, y: number, platformId?: string): PlatformVisual | null {
+        // Check collision with specific platform or all platforms
+        const platformsToCheck = platformId 
+            ? [this.getPlatformById(platformId)].filter(p => p !== undefined) as PlatformVisual[]
+            : this.platforms;
+
+        for (const platform of platformsToCheck) {
+            const collision = platform.collisionBody;
+            const bounds = collision.getBounds();
+            
+            if (x >= bounds.left && x <= bounds.right && 
+                y >= bounds.top && y <= bounds.bottom) {
+                return platform;
+            }
+        }
+        
+        return null;
+    }
+
+    getPlatformCollisionBounds(platformId: string): Phaser.Geom.Rectangle | null {
+        const platform = this.getPlatformById(platformId);
+        return platform ? platform.collisionBody.getBounds() : null;
     }
 
     clearPlatforms(): void {
         this.platforms.forEach(platform => {
             platform.sprite.destroy();
             platform.labelText.destroy();
+            platform.collisionBody.destroy();
+            platform.supportArm.destroy();
         });
         this.platforms = [];
         this.platformGroup.clear(true, true);

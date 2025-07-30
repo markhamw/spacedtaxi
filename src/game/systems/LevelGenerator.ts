@@ -62,9 +62,10 @@ export class LevelGenerator {
 
     private getSpaceStationCenter(): { x: number; y: number } {
         const { width, height } = this.scene.scale;
+        // Space station positioned in bottom third
         return {
             x: width / 2,
-            y: height / 2
+            y: height * 0.8 // 80% down from top = lower portion of screen
         };
     }
 
@@ -95,6 +96,9 @@ export class LevelGenerator {
             if (platforms.length >= platformCount) break;
         }
 
+        // Apply additional spacing optimization
+        this.optimizePlatformSpacing(platforms, center);
+
         return platforms;
     }
 
@@ -111,32 +115,37 @@ export class LevelGenerator {
         const totalArms = Math.min(4, Math.ceil(config.platformCount / 4));
         const armAngle = (armIndex * (Math.PI * 2)) / totalArms;
         
-        // Base distance from center and variation
+        // Base distance from center and variation - increased for much more dynamic positioning
         const baseDistance = Math.min(width, height) * 0.15;
-        const maxDistance = Math.min(width, height) * 0.4;
+        const maxDistance = Math.min(width, height) * 0.6;
         
         for (let platformIndex = 0; platformIndex < platformCount; platformIndex++) {
-            // Distance increases along the arm
+            // Distance increases along the arm with better spacing
             const distanceRatio = (platformIndex + 1) / (platformCount + 1);
             const distance = baseDistance + (maxDistance - baseDistance) * distanceRatio;
             
-            // Add slight random variation to prevent perfect alignment
-            const angleVariation = (Math.random() - 0.5) * 0.3 * config.difficulty;
-            const distanceVariation = (Math.random() - 0.5) * 20 * config.difficulty;
+            // Add significant random variation for more natural positioning
+            const angleVariation = (Math.random() - 0.5) * 0.4 * config.difficulty;
+            const distanceVariation = (Math.random() - 0.5) * 60 * config.difficulty;
             
             const finalAngle = armAngle + angleVariation;
             const finalDistance = distance + distanceVariation;
             
-            const x = center.x + Math.cos(finalAngle) * finalDistance;
-            const y = center.y + Math.sin(finalAngle) * finalDistance;
+            // Calculate base position
+            let x = center.x + Math.cos(finalAngle) * finalDistance;
+            let y = center.y + Math.sin(finalAngle) * finalDistance;
+            
+            // Add MUCH more significant Y variance for dramatic height differences
+            const yVariance = (Math.random() - 0.5) * (height * 0.8); // Up to 80% of screen height variance
+            y += yVariance;
             
             // Generate unique platform identifier
             const id = this.generatePlatformId(armIndex, platformIndex);
             
             platforms.push({
                 id,
-                x: Math.max(50, Math.min(width - 50, x)), // Keep within bounds
-                y: Math.max(50, Math.min(height - 50, y)), // Keep within bounds
+                x: Math.max(80, Math.min(width - 80, x)), // Keep within bounds with more margin
+                y: Math.max(40, Math.min(height * 0.9, y)), // Allow platforms much lower - up to 90% down screen
                 armIndex,
                 platformIndex
             });
@@ -145,12 +154,63 @@ export class LevelGenerator {
         return platforms;
     }
 
+    private optimizePlatformSpacing(platforms: Platform[], center: { x: number; y: number }): void {
+        const minDistance = 150;
+        const { width, height } = this.scene.scale;
+        const maxIterations = 10;
+        
+        for (let iteration = 0; iteration < maxIterations; iteration++) {
+            let moved = false;
+            
+            for (let i = 0; i < platforms.length; i++) {
+                for (let j = i + 1; j < platforms.length; j++) {
+                    const platform1 = platforms[i];
+                    const platform2 = platforms[j];
+                    
+                    const dx = platform1.x - platform2.x;
+                    const dy = platform1.y - platform2.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < minDistance && distance > 0) {
+                        // Calculate push direction
+                        const pushForce = (minDistance - distance) / 2;
+                        const pushAngle = Math.atan2(dy, dx);
+                        
+                        // Push platforms apart
+                        const pushX = Math.cos(pushAngle) * pushForce;
+                        const pushY = Math.sin(pushAngle) * pushForce;
+                        
+                        // Apply push while keeping within bounds
+                        platform1.x = Math.max(80, Math.min(width - 80, platform1.x + pushX));
+                        platform1.y = Math.max(80, Math.min(height - 80, platform1.y + pushY));
+                        platform2.x = Math.max(80, Math.min(width - 80, platform2.x - pushX));
+                        platform2.y = Math.max(80, Math.min(height - 80, platform2.y - pushY));
+                        
+                        moved = true;
+                    }
+                }
+            }
+            
+            // If no platforms moved, spacing is optimized
+            if (!moved) break;
+        }
+    }
+
     private generatePlatformId(armIndex: number, platformIndex: number): string {
-        // Generate alphanumeric IDs like C11, K2, N88
+        // Generate varied alphanumeric IDs like C11, K2, N88, X47, etc.
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const letter = letters[armIndex % letters.length];
-        const number = (platformIndex + 1) + (armIndex * 10);
-        return `${letter}${number}`;
+        
+        // More varied letter selection - not just sequential
+        const letterVariance = Math.floor(Math.random() * 4); // 0-3 offset
+        const letterIndex = (armIndex * 3 + letterVariance) % letters.length;
+        const letter = letters[letterIndex];
+        
+        // More varied numbering - not just sequential
+        const baseNumber = platformIndex + 1;
+        const numberVariants = [baseNumber, baseNumber * 2, baseNumber + 10, baseNumber * 3 + 5];
+        const number = numberVariants[Math.floor(Math.random() * numberVariants.length)];
+        
+        return `${letter}${Math.min(number, 99)}`; // Cap at 99 for readability
     }
 
     private generateSeed(): number {

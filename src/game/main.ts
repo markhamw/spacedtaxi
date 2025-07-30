@@ -1,6 +1,7 @@
 import { Pre } from "./scenes/Pre";
 import { Title } from "./scenes/Title";
 import { Game as GameScene } from "./scenes/Game";
+import { GameOver } from "./scenes/GameOver";
 import { AUTO, Game, Scale, Types } from "phaser";
 
 // Find out more information about the Game Config at:
@@ -18,7 +19,7 @@ const config: Types.Core.GameConfig = {
         mode: Scale.FIT,
         autoCenter: Scale.CENTER_BOTH,
     },
-    scene: [Pre, Title, GameScene],
+    scene: [Pre, Title, GameScene, GameOver],
 };
 
 const StartGame = (parent: string) => {
