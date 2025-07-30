@@ -16,6 +16,7 @@
     "scripts": {
         "dev": "vite --config vite/config.dev.mjs",
         "build": "vite build --config vite/config.prod.mjs",
+        "build-deploy": "vite build --config vite/config.prod.mjs && firebase deploy",
         "dev-nolog": "vite/config.dev.mjs",
         "build-nolog": "vite build --config vite/config.prod.mjs"
     },
@@ -24,6 +25,7 @@
         "vite": "^6.3.1"
     },
     "dependencies": {
+        "@ngneat/falso": "^8.0.2",
         "firebase": "^12.0.0",
         "phaser": "^3.90.0",
         "terser": "^5.39.0"

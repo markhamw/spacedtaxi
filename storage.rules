@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read-only access to game assets (sprites, images, sounds)
+    match /gameAssets/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Allow read-only access to level data files
+    match /levelData/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Allow read-only access to configuration files
+    match /config/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Deny all other access by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__MCPs_all_in_docker__browser_snapshot",
+      "mcp__MCPs_all_in_docker__browser_take_screenshot"
+    ],
+    "deny": []
+  }
+}
