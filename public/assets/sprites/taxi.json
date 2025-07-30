@@ -1,0 +1,83 @@
+{
+	"textures": [
+		{
+			"image": "taxi.png",
+			"format": "RGBA8888",
+			"size": {
+				"w": 54,
+				"h": 12
+			},
+			"scale": 1,
+			"frames": [
+				{
+					"filename": "taxi0.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 16,
+						"h": 16
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 6,
+						"w": 16,
+						"h": 10
+					},
+					"frame": {
+						"x": 1,
+						"y": 1,
+						"w": 16,
+						"h": 10
+					}
+				},
+				{
+					"filename": "taxi1.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 16,
+						"h": 16
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 6,
+						"w": 16,
+						"h": 10
+					},
+					"frame": {
+						"x": 19,
+						"y": 1,
+						"w": 16,
+						"h": 10
+					}
+				},
+				{
+					"filename": "taxi2.png",
+					"rotated": false,
+					"trimmed": true,
+					"sourceSize": {
+						"w": 16,
+						"h": 16
+					},
+					"spriteSourceSize": {
+						"x": 0,
+						"y": 6,
+						"w": 16,
+						"h": 9
+					},
+					"frame": {
+						"x": 37,
+						"y": 1,
+						"w": 16,
+						"h": 9
+					}
+				}
+			]
+		}
+	],
+	"meta": {
+		"app": "https://www.codeandweb.com/texturepacker",
+		"version": "3.0",
+		"smartupdate": "$TexturePacker:SmartUpdate:ff188bd39e59cd095f894b5369efe3db:ec76576867fa16d6460c16025be3542b:5a8f1dccfa3b9e60ed917224e9cbe58b$"
+	}
+}
