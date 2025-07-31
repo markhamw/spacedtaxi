@@ -20,6 +20,7 @@ export interface UIElements {
     missionText: Phaser.GameObjects.BitmapText;
     objectiveText: Phaser.GameObjects.BitmapText;
     timerText: Phaser.GameObjects.BitmapText;
+    speedText: Phaser.GameObjects.BitmapText;
 }
 
 export class MissionOrchestrator {
@@ -144,12 +145,18 @@ export class MissionOrchestrator {
             .setOrigin(1, 0)
             .setTint(parseInt(this.colors.uiText.replace('#', '0x')));
         
+        // Speed display - right side, below timer
+        const speedText = this.scene.add.bitmapText(width - 20, 50, 'thick_8x8', `Speed: 0 m/s`, 12)
+            .setOrigin(1, 0)
+            .setTint(parseInt(this.colors.uiText.replace('#', '0x')));
+        
         this.uiElements = {
             levelText,
             scoreText,
             missionText,
             objectiveText,
-            timerText
+            timerText,
+            speedText
         };
     }
 
@@ -226,6 +233,27 @@ export class MissionOrchestrator {
             reason: 'Time ran out!'
         });
     }
+    
+    public endGame(reason: string): void {
+        this.gameState.gameStatus = 'game_over';
+        
+        // Clear timers
+        if (this.pickupTimer) {
+            this.pickupTimer.destroy();
+            this.pickupTimer = null;
+        }
+        if (this.timerUpdateEvent) {
+            this.timerUpdateEvent.destroy();
+            this.timerUpdateEvent = null;
+        }
+        
+        // Transition to GameOver scene with custom reason
+        console.log(`Game Over: ${reason}`);
+        this.scene.scene.start('GameOver', {
+            score: this.gameState.score,
+            reason: reason
+        });
+    }
 
 
     private createRandomMission(): void {
@@ -256,11 +284,6 @@ export class MissionOrchestrator {
         
         // Mark platform as having a passenger
         this.platformManager.setPlatformPassengerWaiting(pickupPlatform.id, true);
-        
-        // Speak greeting after a short delay
-        this.scene.time.delayedCall(1000, () => {
-            this.passengerManager.speakPassengerLine(mission.passenger.id, 'greeting');
-        });
         
         console.log(`Mission created: ${mission.passenger.name} from ${pickupPlatform.id} to ${destinationPlatform.id}`);
     }
@@ -312,6 +335,17 @@ export class MissionOrchestrator {
         );
         this.updateTimerDisplay();
     }
+    
+    public updateSpeed(velocityX: number, velocityY: number): void {
+        if (!this.uiElements) return;
+        
+        // Calculate speed in pixels per second, then convert to approximate m/s
+        const pixelSpeed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+        // Approximate conversion: assume 100 pixels = 10 meters for game scale
+        const metersPerSecond = (pixelSpeed / 100) * 10;
+        
+        this.uiElements.speedText.setText(`Speed: ${metersPerSecond.toFixed(1)} m/s`);
+    }
 
     // Public methods for game interactions
     
@@ -331,6 +365,16 @@ export class MissionOrchestrator {
             if (success) {
                 this.platformManager.setPlatformPassengerWaiting(platformId, false);
                 this.updateObjectiveDisplay();
+                
+                // Now speak greeting and destination after pickup
+                this.scene.time.delayedCall(500, () => {
+                    this.passengerManager.speakPassengerLine(mission.passenger.id, 'greeting');
+                });
+                
+                // Speak destination after greeting
+                this.scene.time.delayedCall(2000, () => {
+                    this.passengerManager.speakPassengerLine(mission.passenger.id, 'destination');
+                });
                 
                 // Restart timer for delivery
                 this.startPickupTimer();
@@ -412,17 +456,34 @@ export class MissionOrchestrator {
         return { ...this.gameState };
     }
 
+    public getPlatformManager(): PlatformManager {
+        return this.platformManager;
+    }
+
     public pauseGame(): void {
         if (this.gameState.gameStatus === 'playing') {
             this.gameState.gameStatus = 'paused';
-            this.scene.scene.pause();
+            // Don't pause the entire scene - just pause timers
+            // This keeps input handling active so ESC can close menu
+            if (this.pickupTimer) {
+                this.pickupTimer.paused = true;
+            }
+            if (this.timerUpdateEvent) {
+                this.timerUpdateEvent.paused = true;
+            }
         }
     }
 
     public resumeGame(): void {
         if (this.gameState.gameStatus === 'paused') {
             this.gameState.gameStatus = 'playing';
-            this.scene.scene.resume();
+            // Resume timers
+            if (this.pickupTimer) {
+                this.pickupTimer.paused = false;
+            }
+            if (this.timerUpdateEvent) {
+                this.timerUpdateEvent.paused = false;
+            }
         }
     }
 

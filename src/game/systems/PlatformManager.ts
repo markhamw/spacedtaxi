@@ -4,7 +4,7 @@ import { Platform } from './LevelGenerator';
 export interface PlatformVisual extends Platform {
     sprite: Phaser.GameObjects.Graphics;
     labelText: Phaser.GameObjects.BitmapText;
-    collisionBody: Phaser.GameObjects.Rectangle;
+    collisionBody: Phaser.Physics.Arcade.Sprite;
     supportArm: Phaser.GameObjects.Graphics;
     isOccupied: boolean;
     passengerWaiting: boolean;
@@ -71,15 +71,18 @@ export class PlatformManager {
         // Position the graphics object
         sprite.setPosition(platform.x, platform.y);
 
-        // Create collision body (bottom 50% only for 2.5D effect)
-        const collisionBody = this.scene.add.rectangle(
+        // Create physics-enabled collision body (bottom 50% only for 2.5D effect)
+        const collisionBody = this.scene.physics.add.staticSprite(
             platform.x,
             platform.y + platformHeight * 0.25, // Offset down by 25% of height
-            platformWidth,
-            platformHeight * 0.5, // Only bottom 50%
-            0x000000 // Color doesn't matter, will be invisible
+            null // No texture needed
         );
-        collisionBody.setAlpha(0); // Make invisible
+        collisionBody.setSize(platformWidth, platformHeight * 0.5); // Set collision size
+        collisionBody.setVisible(false); // Make invisible
+        // Static sprites are already immovable by default
+        
+        console.log(`Created collision body for platform ${platform.id} at (${platform.x}, ${platform.y + platformHeight * 0.25})`);
+        console.log(`Collision body size: ${platformWidth} x ${platformHeight * 0.5}`);
         
         // Create platform label
         const labelText = this.scene.add.bitmapText(

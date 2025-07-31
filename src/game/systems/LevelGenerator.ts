@@ -197,20 +197,35 @@ export class LevelGenerator {
     }
 
     private generatePlatformId(armIndex: number, platformIndex: number): string {
-        // Generate varied alphanumeric IDs like C11, K2, N88, X47, etc.
-        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        // Generate sci-fi themed platform names with numbers
+        const sciFiNames = [
+            'Armory', 'Bridge', 'Cargo', 'Deck', 'Engine', 'Fusion', 'Gravity', 'Hangar',
+            'Ion', 'Reactor', 'Kinetic', 'Launch', 'Matrix', 'Neural', 'Orbital', 'Plasma',
+            'Quantum', 'Relay', 'Solar', 'Thermal', 'Ultra', 'Vector', 'Warp', 'Xenon',
+            'Hydro', 'Zero', 'Bio', 'Cryo', 'Data', 'Echo', 'Field', 'Grid',
+            'Hub', 'Lab', 'Med', 'Nav', 'Ops', 'Port', 'Comm', 'Tech'
+        ];
         
-        // More varied letter selection - not just sequential
-        const letterVariance = Math.floor(Math.random() * 4); // 0-3 offset
-        const letterIndex = (armIndex * 3 + letterVariance) % letters.length;
-        const letter = letters[letterIndex];
+        const animalNames = [
+            'Falcon', 'Hawk', 'Eagle', 'Wolf', 'Tiger', 'Shark', 'Raven', 'Viper',
+            'Phoenix', 'Dragon', 'Lynx', 'Cobra', 'Panther', 'Stallion', 'Raptor', 'Bear',
+            'Fox', 'Hound', 'Lion', 'Owl', 'Stag', 'Swan', 'Tuna', 'Whale'
+        ];
         
-        // More varied numbering - not just sequential
+        // Combine sci-fi and animal names for variety
+        const allNames = [...sciFiNames, ...animalNames];
+        
+        // Select name based on arm and platform index with some randomness
+        const nameVariance = Math.floor(Math.random() * 3); // 0-2 offset for variety
+        const nameIndex = (armIndex * 7 + platformIndex * 3 + nameVariance) % allNames.length;
+        const name = allNames[nameIndex];
+        
+        // Generate varied numbering - not just sequential
         const baseNumber = platformIndex + 1;
         const numberVariants = [baseNumber, baseNumber * 2, baseNumber + 10, baseNumber * 3 + 5];
         const number = numberVariants[Math.floor(Math.random() * numberVariants.length)];
         
-        return `${letter}${Math.min(number, 99)}`; // Cap at 99 for readability
+        return `${name}${Math.min(number, 99)}`; // Cap at 99 for readability
     }
 
     private generateSeed(): number {

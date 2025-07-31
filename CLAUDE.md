@@ -44,7 +44,7 @@ This is a Phaser 3 TypeScript game using Vite for bundling. The game is a Space 
 
 -   Space taxi clone with procedurally generated levels
 -   Central space station with extending arms to platforms
--   Platform arms spawning 2-4 platforms each with unique identifiers (e.g., C11, K2, N88)
+-   Platform arms spawning 2-4 platforms each with unique sci-fi identifiers (e.g., Armory12, Bridge5, Cargo22, Falcon8)
 -   Time-based gameplay: 20-second timer for passenger pickup/delivery
 -   Sequential passenger pickup/dropoff missions with scoring system
 -   Taxi physics with thrust controls and landing mechanics
@@ -77,7 +77,7 @@ This is a Phaser 3 TypeScript game using Vite for bundling. The game is a Space 
 -   **PlatformManager**: Platform rendering, collision detection, passenger interaction
 -   **SpaceStationManager**: Central station with arms connecting to platforms
 -   **Dynamic layout**: 2-4 arms with 2-4 platforms each, optimized spacing
--   **Unique identifiers**: Alphanumeric platform IDs (C11, K2, N88, etc.)
+-   **Unique identifiers**: Sci-fi themed platform IDs (Armory12, Bridge5, Cargo22, Falcon8, etc.)
 
 #### Visual Systems
 -   **BackgroundRenderer**: Parallax starfield with twinkling animations

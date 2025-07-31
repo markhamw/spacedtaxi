@@ -24,6 +24,9 @@ export class Pre extends Scene {
         
         // Load bitmap font
         this.load.bitmapFont('thick_8x8', 'fonts/thick_8x8.png', 'fonts/thick_8x8.xml');
+        
+        // Load taxi sprite atlas
+        this.load.atlas('taxi', 'sprites/taxi.png', 'sprites/taxi.json');
     }
 
     create() {
